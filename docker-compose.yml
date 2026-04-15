@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  calculadora_web:
+    build: .
+    container_name: pycalc_pro
+    ports:
+      - "5001:5000"
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production

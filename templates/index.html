@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyCalc Pro | Programmer Edition</title>
+    <style>
+        :root {
+            --glass-bg: rgba(20, 25, 35, 0.7);
+            --glass-border: rgba(0, 242, 254, 0.4); 
+            --glow: rgba(0, 242, 254, 0.15);
+            --text-main: #ffffff;
+            --text-muted: #64748b;
+            --accent: #00f2fe;
+            --btn-bg: rgba(255, 255, 255, 0.04);
+            --btn-hover: rgba(255, 255, 255, 0.12);
+        }
+        
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #080b12; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #interactive-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .wrapper { position: relative; z-index: 10; pointer-events: none; }
+        
+        .calculator {
+            pointer-events: auto; 
+            background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border); border-radius: 28px; 
+            padding: 2.2rem; width: 360px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.8), 0 0 40px var(--glow), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+        .brand { color: var(--accent); font-weight: 700; font-size: 1.2rem; text-shadow: 0 0 12px rgba(0, 242, 254, 0.6); }
+
+        /* Controles de Modo Interactivos */
+        .mode-controls { display: flex; gap: 8px; }
+        .slot-btn {
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-muted); padding: 6px 14px; border-radius: 8px;
+            cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.3s;
+        }
+        .slot-btn.active { background: var(--accent); color: #000; box-shadow: 0 0 15px rgba(0, 242, 254, 0.5); }
+        
+        /* Dropdown personalizado */
+        .dropdown-group { position: relative; display: flex; }
+        .slot-btn.grouped { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; }
+        .drop-trigger {
+            background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-left: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-muted); padding: 0 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px;
+            cursor: pointer; transition: 0.3s; font-size: 0.7rem; display: flex; align-items: center;
+        }
+        .dropdown-group.active .drop-trigger { background: var(--accent); color: #000; border-color: var(--accent); }
+        .drop-menu {
+            position: absolute; top: 110%; right: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 8px; overflow: hidden;
+            display: none; flex-direction: column; min-width: 80px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 20;
+        }
+        .drop-menu.show { display: flex; }
+        .drop-item {
+            padding: 10px 15px; color: #fff; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center;
+            transition: background 0.2s;
+        }
+        .drop-item:hover { background: rgba(0, 242, 254, 0.2); color: var(--accent); }
+
+        .display {
+            background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px;
+            padding: 1.2rem; text-align: right; font-size: 2.2rem; color: var(--text-main);
+            margin-bottom: 1.2rem; min-height: 40px; word-wrap: break-word; font-family: 'Fira Code', monospace;
+            box-shadow: inset 0 4px 15px rgba(0,0,0,0.8);
+        }
+
+        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+        .btn {
+            background: var(--btn-bg); border: 1px solid rgba(255,255,255,0.03); color: var(--text-main);
+            font-size: 1.1rem; padding: 0.9rem; border-radius: 12px; cursor: pointer;
+            transition: all 0.2s ease; backdrop-filter: blur(5px);
+        }
+
+        .btn:hover:not(:disabled) { 
+            background: var(--btn-hover); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .btn:active:not(:disabled) { transform: translateY(1px); }
+
+        .btn.op { color: var(--accent); font-weight: 500; }
+        .btn.danger { color: #f43f5e; font-weight: 600; }
+        .btn.logic { color: #fbbf24; font-size: 0.85rem; font-weight: 600; }
+        .btn.hex-letter { color: #a855f7; font-weight: 600; }
+        
+        .btn.calc { 
+            background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: bold; border: none;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.4); font-size: 1.4rem; grid-column: span 2;
+        }
+        .btn.calc:hover { box-shadow: 0 8px 25px rgba(0, 242, 254, 0.6); }
+        
+        /* ¡AQUÍ ESTÁ LA MAGIA ARREGLADA! */
+        /* Ahora los botones deshabilitados se ven como teclas reales pero "apagadas" */
+        .btn:disabled { 
+            opacity: 0.3; 
+            cursor: not-allowed; 
+            background: rgba(0, 0, 0, 0.2); 
+            border-color: rgba(255, 255, 255, 0.01);
+            color: var(--text-muted) !important; /* Le quita el color morado/amarillo a las letras/lógica al apagarse */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="interactive-bg"></canvas>
+
+    <div class="wrapper">
+        <div class="calculator">
+            <div class="header">
+                <span class="brand">PyCalc Pro</span>
+                
+                <div class="mode-controls">
+                    <button id="slot1" class="slot-btn active" onclick="activateSlot(1)">DEC</button>
+                    <div class="dropdown-group" id="slot2-group">
+                        <button id="slot2-label" class="slot-btn grouped" onclick="activateSlot(2)">BIN</button>
+                        <button class="drop-trigger" onclick="toggleMenu()">▼</button>
+                        <div class="drop-menu" id="modes-menu">
+                            <div class="drop-item" onclick="changeSlot2('binario', 'BIN')">BIN</div>
+                            <div class="drop-item" onclick="changeSlot2('hexadecimal', 'HEX')">HEX</div>
+                            <div class="drop-item" onclick="changeSlot2('octal', 'OCT')">OCT</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="display" id="display">0</div>
+            
+            <div class="keypad">
+                <button class="btn logic requires-base" data-bases="binario,hexadecimal,octal" onclick="appendOp('&')">AND</button>
+                <button class="btn logic requires-base" data-bases="binario,hexadecimal,octal" onclick="appendOp('|')">OR</button>
+                <button class="btn logic requires-base" data-bases="binario,hexadecimal,octal" onclick="appendOp('^')">XOR</button>
+                <button class="btn danger" onclick="clearDisplay()">C</button>
+
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('A')">A</button>
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('B')">B</button>
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('C')">C</button>
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('D')">D</button>
+
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('E')">E</button>
+                <button class="btn hex-letter requires-base" data-bases="hexadecimal" onclick="appendNum('F')">F</button>
+                <button class="btn op" onclick="appendOp('/')">/</button>
+                <button class="btn op" onclick="appendOp('*')">×</button>
+
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('7')">7</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal" onclick="appendNum('8')">8</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal" onclick="appendNum('9')">9</button>
+                <button class="btn op" onclick="appendOp('-')">-</button>
+                
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('4')">4</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('5')">5</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('6')">6</button>
+                <button class="btn op" onclick="appendOp('+')">+</button>
+                
+                <button class="btn num requires-base" data-bases="decimal,binario,hexadecimal,octal" onclick="appendNum('1')">1</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('2')">2</button>
+                <button class="btn num requires-base" data-bases="decimal,hexadecimal,octal" onclick="appendNum('3')">3</button>
+                <button class="btn requires-base" data-bases="decimal" onclick="appendNum('.')">.</button>
+                
+                <button class="btn num requires-base" data-bases="decimal,binario,hexadecimal,octal" onclick="appendNum('0')" style="grid-column: span 2;">0</button>
+                <button class="btn calc" onclick="calculate()">=</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- FONDO INTERACTIVO ---
+        const canvas = document.getElementById('interactive-bg');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        let mouse = { x: null, y: null };
+
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+        window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('.calculator')) return;
+            for (let i = 0; i < 25; i++) particles.push(new Particle(e.clientX, e.clientY, true));
+        });
+
+        class Particle {
+            constructor(x, y, isExplosion = false) {
+                this.x = x || Math.random() * width; this.y = y || Math.random() * height;
+                this.size = Math.random() * 2 + 1;
+                if (isExplosion) {
+                    const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 8 + 2;
+                    this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+                    this.life = 1.0; this.decay = Math.random() * 0.03 + 0.015;
+                } else {
+                    this.vx = (Math.random() - 0.5) * 1; this.vy = (Math.random() - 0.5) * 1; this.life = Infinity;
+                }
+                this.isExplosion = isExplosion;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                if (this.isExplosion) { this.life -= this.decay; } 
+                else {
+                    if (this.x < 0 || this.x > width) this.vx *= -1; if (this.y < 0 || this.y > height) this.vy *= -1;
+                    if (mouse.x != null) {
+                        const dx = mouse.x - this.x; const dy = mouse.y - this.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < 150) { this.x += dx * 0.01; this.y += dy * 0.01; }
+                    }
+                }
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 242, 254, ${this.isExplosion ? this.life : 0.6})`; ctx.fill();
+            }
+        }
+        for (let i = 0; i < 80; i++) particles.push(new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles = particles.filter(p => p.life > 0);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(); particles[i].draw();
+                if (!particles[i].isExplosion) {
+                    for (let j = i; j < particles.length; j++) {
+                        if (particles[j].isExplosion) continue;
+                        const dx = particles[i].x - particles[j].x; const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < 100) {
+                            ctx.beginPath(); ctx.strokeStyle = `rgba(0, 242, 254, ${0.2 * (1 - dist/100)})`;
+                            ctx.lineWidth = 1; ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
+                        }
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // --- LÓGICA DE LA CALCULADORA E INTERFAZ ---
+        let currentMode = 'decimal';
+        let slot2Mode = 'binario';
+        let expression = '';
+        const display = document.getElementById('display');
+        const menu = document.getElementById('modes-menu');
+
+        function toggleMenu() { menu.classList.toggle('show'); }
+        window.onclick = function(event) {
+            if (!event.target.matches('.drop-trigger')) {
+                if (menu.classList.contains('show')) menu.classList.remove('show');
+            }
+        }
+
+        function changeSlot2(modoReal, etiqueta) {
+            slot2Mode = modoReal;
+            document.getElementById('slot2-label').innerText = etiqueta;
+            activateSlot(2);
+        }
+
+        function activateSlot(slotNumber) {
+            document.getElementById('slot1').classList.remove('active');
+            document.getElementById('slot2-group').classList.remove('active');
+            
+            if (slotNumber === 1) {
+                document.getElementById('slot1').classList.add('active');
+                setInternalMode('decimal');
+            } else {
+                document.getElementById('slot2-group').classList.add('active');
+                setInternalMode(slot2Mode);
+            }
+        }
+
+        function setInternalMode(mode) {
+            currentMode = mode;
+            clearDisplay();
+            
+            document.querySelectorAll('.requires-base').forEach(btn => {
+                const bases = btn.getAttribute('data-bases').split(',');
+                btn.disabled = !bases.includes(mode);
+            });
+        }
+
+        function updateDisplay(val) { display.innerText = val || '0'; }
+
+        function appendNum(num) {
+            if (expression === 'Error' || expression === 'Sintaxis Error') expression = '';
+            expression += num;
+            updateDisplay(expression);
+        }
+
+        function appendOp(op) {
+            if (expression === 'Error' || expression === 'Sintaxis Error') expression = '';
+            let char = op === '×' ? '*' : op;
+            expression += ` ${char} `;
+            updateDisplay(expression);
+        }
+
+        function clearDisplay() {
+            expression = '';
+            updateDisplay('0');
+        }
+
+        async function calculate() {
+            if (!expression) return;
+            display.style.opacity = '0.5';
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ expression: expression, mode: currentMode })
+                });
+                const data = await response.json();
+                if (data.error) { expression = ''; updateDisplay(data.error); } 
+                else { expression = data.result; updateDisplay(expression); }
+            } catch (error) {
+                expression = ''; updateDisplay('Error de red');
+            } finally {
+                display.style.opacity = '1';
+            }
+        }
+        
+        activateSlot(1);
+    </script>
+</body>
+</html>
