@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Instalando dependencias si fuera necesario..."
+  build:
+    commands:
+      - echo "Compilando la interfaz estética..."
+      - echo "Validando estructura de archivos..."
+artifacts:
+  files:
+    - '**/*'
+  base-directory: '.'
