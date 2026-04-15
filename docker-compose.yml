@@ -9,3 +9,5 @@ services:
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
+    volumes:
+      - ./logs:/app/logs   # <-- ESTO ES LO NUEVO
